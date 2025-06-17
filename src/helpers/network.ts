@@ -11,10 +11,10 @@ export interface NetworkDetails {
   networkPassphrase: string;
 }
 
-export const TESTNET_DETAILS = {
-  network: "TESTNET",
-  networkUrl: "https://horizon-testnet.stellar.org",
-  networkPassphrase: "Test SDF Network ; September 2015",
+export const MAINNET_DETAILS = {
+  network: "MAINNET",
+  networkUrl: "https://horizon.stellar.org",
+  networkPassphrase: "Public Global Stellar Network ; September 2015",
 };
 
 export const signData = async (

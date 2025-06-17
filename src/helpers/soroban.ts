@@ -30,10 +30,10 @@ export const SendTxStatus: {
   Error: "ERROR",
 };
 
-export const BASE_FEE = "100";
+export const BASE_FEE = "10000";
 
 export const RPC_URLS: { [key: string]: string } = {
-  TESTNET: "https://soroban-testnet.stellar.org",
+  MAINNET: "https://mainnet.sorobanrpc.com",
 };
 
 // Given a display value for a token and a number of decimals, return the corresponding BigNumber
