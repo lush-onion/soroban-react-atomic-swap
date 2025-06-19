@@ -1,9 +1,7 @@
 import {
   StellarWalletsKit,
   // IStellarWalletsKitSignParams,
-} from "stellar-wallets-kit";
-
-import { signAuthEntry } from "@stellar/freighter-api";
+} from "@creit.tech/stellar-wallets-kit";
 
 export interface NetworkDetails {
   network: string;
@@ -22,12 +20,10 @@ export const signData = async (
   publicKey: string,
   kit: StellarWalletsKit,
 ) => {
-  // TODO: go back to using kit once auth entry PR lands
-  console.log(kit);
-  const signedEntry = await signAuthEntry(entryXdr, {
-    accountToSign: publicKey,
+  const { signedAuthEntry } = await kit.signAuthEntry(entryXdr, {
+    address: publicKey,
   });
-  return signedEntry;
+  return signedAuthEntry;
 };
 
 export const signTx = async (
@@ -35,9 +31,8 @@ export const signTx = async (
   publicKey: string,
   kit: StellarWalletsKit,
 ) => {
-  const { signedXDR } = await kit.sign({
-    xdr,
-    publicKey,
+  const { signedTxXdr } = await kit.signTransaction(xdr, {
+    address: publicKey,
   });
-  return signedXDR;
+  return signedTxXdr;
 };

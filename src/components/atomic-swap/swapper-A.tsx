@@ -7,23 +7,34 @@ import {
   Transaction,
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
-import { Button, Heading, Select, Profile } from "@stellar/design-system";
 import {
-  WalletNetwork,
-  WalletType,
+  Button,
+  Heading,
+  Select,
+  Profile,
+  Card,
+  IconButton,
+  Icon,
+  Loader,
+} from "@stellar/design-system";
+import {
   ISupportedWallet,
   StellarWalletsKit,
-} from "stellar-wallets-kit";
+} from "@creit.tech/stellar-wallets-kit";
 
 import { bc, ChannelMessageType } from "../../helpers/channel";
 import {
   getServer,
   signContractAuth,
   getArgsFromEnvelope,
+  getTxBuilder,
+  BASE_FEE,
+  getTokenSymbol,
 } from "../../helpers/soroban";
 import { NetworkDetails } from "../../helpers/network";
 import { ERRORS } from "../../helpers/error";
 import { formatTokenAmount } from "../../helpers/format";
+import { copyContent } from "../../helpers/dom";
 
 type StepCount = 1 | 2;
 
@@ -43,28 +54,26 @@ export const SwapperA = (props: SwapperAProps) => {
   );
   const [contractID, setContractID] = React.useState("");
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
+  const [creatorFootprint, setCreatorFootprint] = React.useState("");
   const [swapArgs, setSwapArgs] = React.useState(
     {} as ReturnType<typeof getArgsFromEnvelope>,
   );
+  const [tokenASymbol, setTokenASymbol] = React.useState("");
+  const [tokenBSymbol, setTokenBSymbol] = React.useState("");
+
+  const [urlToShare, setUrlToShare] = React.useState("");
 
   const connect = async () => {
     props.setError(null);
 
     await props.swkKit.openModal({
-      allowedWallets: [
-        WalletType.ALBEDO,
-        WalletType.FREIGHTER,
-        WalletType.XBULL,
-      ],
       onWalletSelected: async (option: ISupportedWallet) => {
         try {
           // Set selected wallet,  network, and public key
-          props.swkKit.setWallet(option.type);
-          const publicKey = await props.swkKit.getPublicKey();
+          props.swkKit.setWallet(option.id);
+          const { address } = await props.swkKit.getAddress();
 
-          await props.swkKit.setNetwork(WalletNetwork.TESTNET);
-
-          props.setPubKey(publicKey);
+          props.setPubKey(address);
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
           console.log(error);
@@ -74,7 +83,7 @@ export const SwapperA = (props: SwapperAProps) => {
     });
   };
 
-  bc.onmessage = (messageEvent) => {
+  bc.onmessage = async (messageEvent) => {
     const { data, type } = messageEvent.data;
     switch (type) {
       case ChannelMessageType.ContractID: {
@@ -84,6 +93,9 @@ export const SwapperA = (props: SwapperAProps) => {
           props.networkDetails.networkPassphrase,
         ) as Transaction<Memo<MemoType>, Operation[]>;
         setBaseTx(tx);
+        setCreatorFootprint(data.creatorFootprint);
+
+        const server = getServer(props.networkDetails);
 
         const args = getArgsFromEnvelope(
           tx.toEnvelope().toXDR("base64"),
@@ -108,6 +120,32 @@ export const SwapperA = (props: SwapperAProps) => {
             props.decimals,
           ),
         };
+        const tokenASymbolBuilder = await getTxBuilder(
+          args.addressA,
+          BASE_FEE,
+          server,
+          props.networkDetails.networkPassphrase,
+        );
+        const symbolA = await getTokenSymbol(
+          args.tokenA,
+          tokenASymbolBuilder,
+          server,
+        );
+        setTokenASymbol(symbolA);
+
+        const tokenBSymbolBuilder = await getTxBuilder(
+          args.addressA,
+          BASE_FEE,
+          server,
+          props.networkDetails.networkPassphrase,
+        );
+        const symbolB = await getTokenSymbol(
+          args.tokenB,
+          tokenBSymbolBuilder,
+          server,
+        );
+        setTokenBSymbol(symbolB);
+
         setSwapArgs(formattedArgs);
 
         return;
@@ -132,38 +170,49 @@ export const SwapperA = (props: SwapperAProps) => {
               props.networkDetails.networkPassphrase,
               props.swkKit,
             );
-            const newWindow = window.open(
-              `${props.basePath}/swapper-b`,
-              "_blank",
-            );
-            if (newWindow) {
-              newWindow.onload = () => {
-                bc.postMessage({
-                  type: ChannelMessageType.BuiltTx,
-                  data: {
-                    contractID,
-                    signedTx: signedTx.toEnvelope().toXDR("base64"),
-                  },
-                });
-              };
-            }
+            const url = `${props.basePath}/swapper-b?xdr=${encodeURIComponent(
+              signedTx.toEnvelope().toXDR("base64"),
+            )}&contractId=${contractID}&account=${swapArgs.addressB}&creatorFootprint=${creatorFootprint}`;
+            setUrlToShare(url);
           } catch (e) {
             console.log("e: ", e);
             props.setError(ERRORS.UNABLE_TO_SIGN_TX);
           }
         };
-        return (
+        return urlToShare ? (
+          <Card>
+            <Heading as="h1" size="sm">
+              Send this link to Swapper B
+            </Heading>
+            <div className="xdr-copy">
+              <IconButton
+                altText="copy result xdr data"
+                icon={<Icon.ContentCopy key="copy-icon" />}
+                onClick={() => copyContent(urlToShare)}
+              />
+              Copy link
+            </div>
+            <a href={urlToShare} target="_blank" rel="noreferrer">
+              Link
+            </a>
+          </Card>
+        ) : (
           <>
             <Heading as="h1" size="sm">
               Confirm Swap Transaction
             </Heading>
+
             <div className="tx-details">
               <div className="tx-detail-item">
                 <p className="detail-header">Network</p>
                 <p className="detail-value">{props.networkDetails.network}</p>
               </div>
               <div className="tx-detail-item address-a">
-                <p className="detail-header">Address A</p>
+                <p className="detail-header">
+                  Your account
+                  <br />
+                  (Send {tokenASymbol} → Receive {tokenBSymbol})
+                </p>
                 <div className="address-a-identicon">
                   <Profile
                     isShort
@@ -173,15 +222,26 @@ export const SwapperA = (props: SwapperAProps) => {
                 </div>
               </div>
               <div className="tx-detail-item">
-                <p className="detail-header">Amount A</p>
-                <p className="detail-value">{swapArgs.amountA}</p>
+                <p className="detail-header">
+                  Amount <br /> (sent by you)
+                </p>
+                <p className="detail-value">
+                  {+swapArgs.amountA / 1e7} {tokenASymbol}
+                </p>
               </div>
               <div className="tx-detail-item">
-                <p className="detail-header">Min Amount A</p>
-                <p className="detail-value">{swapArgs.minAForB}</p>
+                <p className="detail-header">
+                  Minimum amount <br /> (Account B wants for {tokenBSymbol})
+                </p>
+                <p className="detail-value">
+                  {+swapArgs.minAForB / 1e7} {tokenASymbol}
+                </p>
               </div>
               <div className="tx-detail-item address-b">
-                <p className="detail-header">Address B</p>
+                <p className="detail-header">
+                  Account B <br /> (Send {tokenBSymbol} → Receive {tokenASymbol}
+                  )
+                </p>
                 <div className="address-b-identicon">
                   <Profile
                     isShort
@@ -191,12 +251,20 @@ export const SwapperA = (props: SwapperAProps) => {
                 </div>
               </div>
               <div className="tx-detail-item">
-                <p className="detail-header">Amount B</p>
-                <p className="detail-value">{swapArgs.amountB}</p>
+                <p className="detail-header">
+                  Amount <br /> (send by Account B)
+                </p>
+                <p className="detail-value">
+                  {+swapArgs.amountB / 1e7} {tokenBSymbol}
+                </p>
               </div>
               <div className="tx-detail-item">
-                <p className="detail-header">Min Amount B</p>
-                <p className="detail-value">{swapArgs.minBForA}</p>
+                <p className="detail-header">
+                  Minimum amount <br /> (You wants for {tokenASymbol})
+                </p>
+                <p className="detail-value">
+                  {+swapArgs.minBForA / 1e7} {tokenBSymbol}
+                </p>
               </div>
             </div>
             <div className="submit-row">
@@ -214,15 +282,19 @@ export const SwapperA = (props: SwapperAProps) => {
       }
       case 1:
       default: {
+        if (!swapArgs.addressA) {
+          return <Loader />;
+        }
         return (
           <>
             <Heading as="h1" size="sm">
-              Choose Address A
+              Connect signer for{" "}
+              <Profile publicAddress={swapArgs.addressA} isShort size="md" />
             </Heading>
             <p>
               When swapping tokens, you generally have two addresses involved.
             </p>
-            <p>Connect an address that owns token A.</p>
+            <p>Connect an address that owns {tokenASymbol} token.</p>
             <Select
               disabled
               fieldSize="md"

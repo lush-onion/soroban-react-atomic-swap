@@ -22,7 +22,7 @@ const commonConfig = (env) => ({
     filename: "[contenthash].js",
   },
   resolve: {
-    extensions: [".ts", ".tsx", ".js"],
+    extensions: [".ts", ".tsx", ".js", ".json"],
     plugins: [
       new TsconfigPathsPlugin({
         configFile: path.resolve(__dirname, "../tsconfig.json"),
@@ -37,6 +37,10 @@ const commonConfig = (env) => ({
       {
         test: /\.m?js/,
         type: "javascript/auto",
+      },
+      {
+        test: /\.json$/,
+        type: "json",
       },
       {
         test: /\.m?js/,

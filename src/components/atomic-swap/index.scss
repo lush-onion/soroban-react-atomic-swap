@@ -27,7 +27,7 @@
   justify-content: center;
 
   .atomic-swap {
-    width: 375px;
+    width: 600px;
     min-height: 350px;
     height: fit-content;
     margin-top: 2rem;
@@ -47,7 +47,7 @@
       .tx-detail-item {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 0.025rem;
+        margin-bottom: 0.8rem;
 
         &.address-a {
           margin-top: 1rem;

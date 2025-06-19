@@ -4,8 +4,14 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import {
   StellarWalletsKit,
   WalletNetwork,
-  WalletType,
-} from "stellar-wallets-kit";
+  FreighterModule,
+  HotWalletModule,
+  xBullModule,
+  AlbedoModule,
+  HanaModule,
+  RabetModule,
+  LobstrModule,
+} from "@creit.tech/stellar-wallets-kit";
 
 import { AtomicSwap } from "components/atomic-swap";
 import { Exchange } from "./components/atomic-swap/exchange";
@@ -38,14 +44,18 @@ const App = (props: AppProps) => {
   const [SWKKit] = React.useState(
     new StellarWalletsKit({
       network: selectedNetwork.networkPassphrase as WalletNetwork,
-      selectedWallet: WalletType.FREIGHTER,
+      modules: [
+        new LobstrModule(),
+        new FreighterModule(),
+        new HotWalletModule(),
+        // eslint-disable-next-line new-cap
+        new xBullModule(),
+        new AlbedoModule(),
+        new HanaModule(),
+        new RabetModule(),
+      ],
     }),
   );
-
-  // Whenever the selected network changes, set the network on swc
-  React.useEffect(() => {
-    SWKKit.setNetwork(selectedNetwork.networkPassphrase as WalletNetwork);
-  }, [selectedNetwork.networkPassphrase, SWKKit]);
 
   const router = createBrowserRouter([
     {
@@ -90,6 +100,7 @@ const App = (props: AppProps) => {
           path: "swapper-b/",
           element: (
             <SwapperB
+              basePath={window.location.origin}
               decimals={tokenBDecimals}
               networkDetails={selectedNetwork}
               setError={setError}
